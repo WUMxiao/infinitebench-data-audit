@@ -1,0 +1,45 @@
+# 全局配置：所有脚本通过 ib_lab.config.load() 读取，禁止硬编码
+dataset:
+  name: InfiniteBench
+  tasks:
+    - passkey
+    - number_string
+    - kv_retrieval
+    - math_find
+    - math_calc
+    - code_debug
+    - code_run
+    - longbook_qa_eng
+    - longbook_qa_chn
+    - longbook_choice_eng
+    - longbook_sum_eng
+    - longdialogue_qa_eng
+  source: "https://hf-mirror.com/datasets/xinrongzhang2022/InfiniteBench/resolve/main/{task}.jsonl"
+  # 截断：官方 prompt 构造用 127k；这里统一 100k，两家模型才可横向比
+  truncate_tokens: 100000
+  truncate_manner: middle
+
+baseline:
+  sample_per_task: 20      # 每任务抽样条数（固定 seed 可复现）
+  seed: 20261118
+  max_workers: 8
+  retry:
+    max: 3
+    backoff_ms: 1500
+  models:
+    - provider: openai
+      id: gpt-4o
+      max_tokens: 512
+      temperature: 0
+    - provider: anthropic
+      id: claude-sonnet-4-5
+      max_tokens: 512
+      temperature: 0
+
+paths:
+  data: data
+  out: out
+
+env:
+  openai_key: OPENAI_API_KEY
+  anthropic_key: ANTHROPIC_API_KEY

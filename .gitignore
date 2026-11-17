@@ -1,0 +1,25 @@
+# 数据（2.3 GB，用 download_data.py 拉取）
+data/
+*.jsonl
+*.jsonl.part
+
+# 运行产物
+out/
+!out/.gitkeep
+
+# 环境
+.venv/
+vendor/
+.env
+*.pyc
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+
+# pytest 在受限环境下的临时目录
+pytest-cache-files-*/
