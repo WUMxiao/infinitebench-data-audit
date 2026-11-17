@@ -44,6 +44,17 @@ class Config:
         """paths.data / paths.out，相对仓库根目录。"""
         return (REPO_ROOT / self.raw["paths"][key]).resolve()
 
+    @property
+    def data_dir(self) -> Path:
+        """优先 IB_DATA：数据不入仓，本地可以直接指向已下载的目录。"""
+        env = os.environ.get("IB_DATA")
+        return Path(env).expanduser().resolve() if env else self.path_of("data")
+
+    @property
+    def out_dir(self) -> Path:
+        env = os.environ.get("IB_OUT")
+        return Path(env).expanduser().resolve() if env else self.path_of("out")
+
     def source_url(self, task: str) -> str:
         return self.raw["dataset"]["source"].format(task=task)
 
