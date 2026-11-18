@@ -35,6 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     q = sub.add_parser("qtypes", help="问题类型分类：哪类问题更难")
     q.set_defaults(func=_qtypes)
 
+    p2 = sub.add_parser("pilot", help="对存量小批结果做二次分析（不花钱）")
+    p2.set_defaults(func=_pilot)
+
     r = sub.add_parser("report", help="生成报告")
     r.set_defaults(func=_report)
     return p
@@ -71,6 +74,11 @@ def _failure(args, cfg):
 def _qtypes(args, cfg):
     from . import qtypes
     return qtypes.run(cfg)
+
+
+def _pilot(args, cfg):
+    from . import pilot_analysis
+    return pilot_analysis.run(cfg)
 
 
 def _report(args, cfg):
