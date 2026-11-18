@@ -18,12 +18,15 @@ import pandas as pd
 
 from .. import data, metrics
 
-PROMPT_VER = "v1"
+PROMPT_VER = "v2"
 SYSTEM = ("You are a careful reader. Answer the question using only the answer itself, "
           "with no explanation and no extra words.")
+SYSTEM_CHOICE = ("You are a careful reader. Follow the required output format exactly, "
+                 "output nothing else.")
 
-# 长输出任务给更大的预算；检索类只需几个 token
-MAX_TOKENS = {"longbook_sum_eng": 512, "math_calc": 2048, "default": 128}
+# 长输出任务给更大的预算；选择题只需要一个字母
+MAX_TOKENS = {"longbook_sum_eng": 512, "math_calc": 2048, "code_run": 64,
+              "longbook_choice_eng": 8, "code_debug": 8, "default": 128}
 
 
 def max_tokens_for(task: str) -> int:
@@ -38,15 +41,33 @@ def sample_ids(cfg, task: str, n: int) -> list:
         ids = [str(x) for x in df.loc[df["task"] == task, "id"].tolist()]
     else:
         ids = [str(d.get("id")) for d in data.load_task(cfg, task)]
+    # 先 shuffle 再取前 k：n 从 10 扩到 50 时，原样本仍是子集，不重复花钱
     rng = random.Random(f"{cfg.seed}:{task}")
-    k = min(n, len(ids))
-    return sorted(rng.sample(ids, k)) if k else []
+    pool = list(ids)
+    rng.shuffle(pool)
+    return sorted(pool[:min(n, len(pool))])
 
 
-def build_messages(cfg, item: dict) -> tuple:
+def build_messages(cfg, item: dict, task: str) -> tuple:
     ctx = item.get("context") or ""
     question = item.get("input") or ""
+    opts = item.get("options") or []
     ctx_cut, ratio = data.truncate_middle(ctx, cfg.truncate_tokens)
+
+    if task == "longbook_sum_eng":
+        user = f"{ctx_cut}\n\nSummarize the passage above in 3 to 5 sentences."
+        return ([{"role": "system", "content": SYSTEM},
+                 {"role": "user", "content": user}], ratio)
+
+    if opts:
+        letters = "ABCDEFGHIJ"[:len(opts)]
+        block = "\n".join(f"{L}. {o}" for L, o in zip(letters, opts))
+        user = (f"{ctx_cut}\n\nQuestion: {question}\n\nOptions:\n{block}\n\n"
+                f"Answer with ONLY the option letter ({letters[0]}-{letters[-1]}), "
+                f"nothing else.")
+        return ([{"role": "system", "content": SYSTEM_CHOICE},
+                 {"role": "user", "content": user}], ratio)
+
     user = f"{ctx_cut}\n\nQuestion: {question}\nAnswer:"
     return ([{"role": "system", "content": SYSTEM},
              {"role": "user", "content": user}], ratio)
@@ -114,7 +135,7 @@ def run(cfg, models=None, n=None, tasks=None) -> int:
                 mid = str(item.get("id"))
                 golds = metrics.make_ground_truth(task, data.normalize_answers(item.get("answer")),
                                                   item.get("options") or [])
-                messages, ratio = build_messages(cfg, item)
+                messages, ratio = build_messages(cfg, item, task)
                 res = call(cfg, model, messages, max_tokens_for(task), retry)
                 sc = metrics.score(task, res["raw"], golds) if res["raw"] else 0.0
                 u = res["usage"] or {}
