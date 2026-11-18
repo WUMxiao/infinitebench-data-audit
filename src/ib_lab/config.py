@@ -9,6 +9,22 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "default.yaml"
 
 
+def _load_dotenv() -> None:
+    """极简 .env 加载器：KEY=VALUE，只补未设置的变量（不覆盖已有环境变量）。"""
+    path = REPO_ROOT / ".env"
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_dotenv()
+
+
 @dataclass
 class Config:
     raw: dict
@@ -61,13 +77,18 @@ class Config:
     # --- 密钥 ---------------------------------------------------------
     def api_key(self, provider: str) -> str:
         env_name = self.raw["env"][f"{provider}_key"]
-        key = os.environ.get(env_name, "")
-        if not key:
+        key = os.environ.get(env_name, "").strip()
+        if not key or key.startswith("sk-在这里"):
             raise RuntimeError(
-                f"缺少环境变量 {env_name}（provider={provider}）。"
-                f"离线基线不需要 key：python -m ib_lab baseline offline"
+                f"缺少 {env_name}。请编辑仓库根的 .env 填入真实 key"
+                f"（不要提交它）。离线基线不需要 key：python -m ib_lab baseline offline"
             )
         return key
+
+    def base_url(self, provider: str) -> str:
+        """中转地址，例如 https://xxx.com/v1；为空表示用官方默认地址。"""
+        env_name = self.raw["env"][f"{provider}_base_url"]
+        return os.environ.get(env_name, "").strip().rstrip("/")
 
 
 def load(path: str | None = None) -> Config:

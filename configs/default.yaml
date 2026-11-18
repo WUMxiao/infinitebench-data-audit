@@ -42,4 +42,6 @@ paths:
 
 env:
   openai_key: OPENAI_API_KEY
+  openai_base_url: OPENAI_BASE_URL
   anthropic_key: ANTHROPIC_API_KEY
+  anthropic_base_url: ANTHROPIC_BASE_URL
