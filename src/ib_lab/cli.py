@@ -29,6 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
     t = sub.add_parser("table", help="汇总成实验表")
     t.set_defaults(func=_table)
 
+    f = sub.add_parser("failure", help="失败分析：为什么没拿满")
+    f.set_defaults(func=_failure)
+
     r = sub.add_parser("report", help="生成报告")
     r.set_defaults(func=_report)
     return p
@@ -55,6 +58,11 @@ def _baseline(args, cfg):
 def _table(args, cfg):
     from . import table
     return table.run(cfg)
+
+
+def _failure(args, cfg):
+    from . import failure
+    return failure.run(cfg)
 
 
 def _report(args, cfg):
