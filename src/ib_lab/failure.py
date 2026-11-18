@@ -49,8 +49,13 @@ def load_rows(cfg) -> pd.DataFrame:
     for f in (cfg.out_dir / "api").rglob("*.jsonl"):
         if f.parent.name == "v2_aborted":
             continue
+        ver = "v2" if f.parent.name == "v2_pilot" else f.parent.name
         with open(f, encoding="utf-8") as fp:
-            rows.extend(json.loads(line) for line in fp if line.strip())
+            for line in fp:
+                if line.strip():
+                    r = json.loads(line)
+                    r["ver"] = ver
+                    rows.append(r)
     return pd.DataFrame(rows)
 
 
@@ -163,7 +168,7 @@ def run(cfg) -> int:
     df["sub_reason"] = df.apply(sub_reason, axis=1)
 
     out = cfg.out_dir
-    log_cols = ["model", "task", "sample_id", "score", "reason", "reason_cn", "sub_reason",
+    log_cols = ["ver", "model", "task", "sample_id", "score", "reason", "reason_cn", "sub_reason",
                 "gold", "raw", "keep_ratio", "latency_s", "error"]
     df[log_cols].to_csv(out / "failure_log.csv", index=False, encoding="utf-8-sig")
 
