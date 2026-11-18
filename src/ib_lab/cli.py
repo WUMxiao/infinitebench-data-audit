@@ -39,6 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
     p2 = sub.add_parser("pilot", help="对存量小批结果做二次分析（不花钱）")
     p2.set_defaults(func=_pilot)
 
+    s = sub.add_parser("sumcheck", help="En.Sum 人工评分与 ROUGE 相关性")
+    s.set_defaults(func=_sumcheck)
+
     r = sub.add_parser("report", help="生成报告")
     r.set_defaults(func=_report)
     return p
@@ -82,6 +85,11 @@ def _qtypes(args, cfg):
 def _pilot(args, cfg):
     from . import pilot_analysis
     return pilot_analysis.run(cfg)
+
+
+def _sumcheck(args, cfg):
+    from . import sumcheck
+    return sumcheck.run(cfg)
 
 
 def _report(args, cfg):
