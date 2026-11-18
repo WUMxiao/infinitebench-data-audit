@@ -32,6 +32,9 @@ def build_parser() -> argparse.ArgumentParser:
     f = sub.add_parser("failure", help="失败分析：为什么没拿满")
     f.set_defaults(func=_failure)
 
+    q = sub.add_parser("qtypes", help="问题类型分类：哪类问题更难")
+    q.set_defaults(func=_qtypes)
+
     r = sub.add_parser("report", help="生成报告")
     r.set_defaults(func=_report)
     return p
@@ -63,6 +66,11 @@ def _table(args, cfg):
 def _failure(args, cfg):
     from . import failure
     return failure.run(cfg)
+
+
+def _qtypes(args, cfg):
+    from . import qtypes
+    return qtypes.run(cfg)
 
 
 def _report(args, cfg):
