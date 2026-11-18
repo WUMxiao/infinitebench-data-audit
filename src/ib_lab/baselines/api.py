@@ -18,14 +18,14 @@ import pandas as pd
 
 from .. import data, metrics
 
-PROMPT_VER = "v2"
+PROMPT_VER = "v3"
 SYSTEM = ("You are a careful reader. Answer the question using only the answer itself, "
           "with no explanation and no extra words.")
 SYSTEM_CHOICE = ("You are a careful reader. Follow the required output format exactly, "
                  "output nothing else.")
 
 # 长输出任务给更大的预算；选择题只需要一个字母
-MAX_TOKENS = {"longbook_sum_eng": 512, "math_calc": 2048, "code_run": 64,
+MAX_TOKENS = {"longbook_sum_eng": 512, "math_calc": 8192, "code_run": 64,
               "longbook_choice_eng": 8, "code_debug": 8, "default": 128}
 
 
@@ -69,6 +69,11 @@ def build_messages(cfg, item: dict, task: str) -> tuple:
                  {"role": "user", "content": user}], ratio)
 
     user = f"{ctx_cut}\n\nQuestion: {question}\nAnswer:"
+    if task == "code_run":
+        # 题面要求以 "The return value is:" 结尾，而判分器取最后一个词：
+        # 必须让数字出现在这句话之后，否则 "4. The return value is:" 会被判成 "is:"
+        user = (f"{ctx_cut}\n\nQuestion: {question}\n\n"
+                f"Put the integer AT THE END, e.g. `The return value is: 42`.")
     return ([{"role": "system", "content": SYSTEM},
              {"role": "user", "content": user}], ratio)
 
