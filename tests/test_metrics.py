@@ -35,3 +35,11 @@ def test_choice_letter_scored_by_letter_only():
     assert golds[1] == "A"
     assert metrics.score("longbook_choice_eng", "A", golds) == 1.0
     assert metrics.score("longbook_choice_eng", "C", golds) == 0.0
+
+
+def test_multi_answer_split_on_semicolon():
+    # 数据里存在 ['four;4'] 这种把两个可接受答案合并写的情况
+    golds = metrics.make_ground_truth("longbook_qa_eng", ["four;4"], [])
+    assert golds == ["four", "4"]
+    assert metrics.qa_f1("Four.", golds) == 1.0
+    assert metrics.qa_f1("five", golds) == 0.0

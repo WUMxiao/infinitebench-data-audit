@@ -67,8 +67,19 @@ def qa_f1(pred: str, golds, zh: bool = False) -> float:
     return best
 
 
+# 这些任务的参考答案可能用 ';' 分隔多个可接受答案，例如 ['four;4']
+# 官方数据里 answer 是 list[str]，但个别元素是 "a;b" 的合并写法。
+SPLIT_TASKS = {"longbook_qa_eng", "longbook_qa_chn", "longdialogue_qa_eng"}
+
+
 def make_ground_truth(task: str, answer: list, options: list) -> list:
-    """复刻 eval_utils.get_answer：选择题要补上字母。"""
+    """复刻 eval_utils.get_answer：选择题要补上字母；QA 类要拆多答案。"""
+    if task in SPLIT_TASKS:
+        out = []
+        for a in answer:
+            parts = [p.strip() for p in str(a).split(";") if p.strip()]
+            out.extend(parts or [a])
+        return out
     if task in ("code_debug", "longbook_choice_eng"):
         opts = "ABCD"
         if len(answer) == 2 and answer[1] in list("ABCD"):

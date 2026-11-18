@@ -47,6 +47,8 @@ def is_fail(task: str, score: float) -> bool:
 def load_rows(cfg) -> pd.DataFrame:
     rows = []
     for f in (cfg.out_dir / "api").rglob("*.jsonl"):
+        if f.parent.name == "v2_aborted":
+            continue
         with open(f, encoding="utf-8") as fp:
             rows.extend(json.loads(line) for line in fp if line.strip())
     return pd.DataFrame(rows)
@@ -59,6 +61,8 @@ def context_flags(cfg, tasks) -> dict:
     """
     want = defaultdict(set)
     for f in (cfg.out_dir / "api").rglob("*.jsonl"):
+        if f.parent.name == "v2_aborted":
+            continue
         with open(f, encoding="utf-8") as fp:
             for line in fp:
                 r = json.loads(line)
@@ -122,6 +126,30 @@ def classify(row: dict, flag: dict) -> str:
     return "F5"
 
 
+def sub_reason(row) -> str:
+    """把 F5（其他）再拆一层：一半以上其实是指标/判分/输出格式的问题。"""
+    if row["reason"] != "F5":
+        return ""
+    raw = (row.get("raw") or "").strip()
+    task = row["task"]
+    gold = str(row["gold"])
+    if task == "longbook_sum_eng":
+        return "摘要内容对但 ROUGE 低（指标问题）"
+    if task == "math_calc":
+        if "?" in raw:
+            return "反问/未完成"
+        if len(re.findall(r"\d+", raw)) < 3:
+            return "只给最终值（输出不完整）"
+        return "计算序列错位"
+    if ";" in gold:
+        return "多答案未拆分（判分 bug）"
+    if task in ("code_debug", "longbook_choice_eng") and raw.upper()[:1] in "ABCD" and len(raw) <= 3:
+        return "选项答错（真错）"
+    if len(raw) <= 6 and raw.lower() in gold.lower():
+        return "同义/短答（判分过严）"
+    return "真推理/检索错"
+
+
 def run(cfg) -> int:
     df = load_rows(cfg)
     if df.empty:
@@ -132,11 +160,19 @@ def run(cfg) -> int:
     df["reason"] = [classify(r._asdict(), flags.get(f"{r.task}|{r.sample_id}", {}))
                     for r in df.itertuples(index=False)]
     df["reason_cn"] = df["reason"].map(REASON_CN)
+    df["sub_reason"] = df.apply(sub_reason, axis=1)
 
     out = cfg.out_dir
-    log_cols = ["model", "task", "sample_id", "score", "reason", "reason_cn",
+    log_cols = ["model", "task", "sample_id", "score", "reason", "reason_cn", "sub_reason",
                 "gold", "raw", "keep_ratio", "latency_s", "error"]
     df[log_cols].to_csv(out / "failure_log.csv", index=False, encoding="utf-8-sig")
+
+    sub = df[df["sub_reason"] != ""].groupby("sub_reason").size().reset_index(name="count")
+    if len(sub):
+        sub["pct"] = (sub["count"] / len(df) * 100).round(1)
+        sub.to_csv(out / "failure_subratio.csv", index=False, encoding="utf-8-sig")
+        print("\n===== F5 细分 =====")
+        print(sub.sort_values("count", ascending=False).to_string(index=False))
 
     ratio = (df.groupby(["model", "task", "reason", "reason_cn"])
                .size().reset_index(name="count"))

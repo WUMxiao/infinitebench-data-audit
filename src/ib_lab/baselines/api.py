@@ -166,6 +166,36 @@ def run(cfg, models=None, n=None, tasks=None) -> int:
     return summarize(cfg, models=wanted, n=n)
 
 
+def rescore(cfg) -> int:
+    """用当前 metrics 重新计算已落盘预测的 gold / score，不再调用 API。
+
+    适用：修了判分口径（多答案拆分、选择题补字母）之后，把历史结果重算一遍。
+    """
+    total = changed = 0
+    for f in (cfg.out_dir / "api").rglob("*.jsonl"):
+        rows = [json.loads(line) for line in open(f, encoding="utf-8") if line.strip()]
+        if not rows:
+            continue
+        task = rows[0]["task"]
+        items = {str(d.get("id")): d for d in data.load_task(cfg, task)}
+        for r in rows:
+            d = items.get(str(r["sample_id"]))
+            if d is None:
+                continue
+            golds = metrics.make_ground_truth(task, data.normalize_answers(d.get("answer")),
+                                              d.get("options") or [])
+            new_score = metrics.score(task, r.get("raw") or "", golds) if r.get("raw") else 0.0
+            total += 1
+            if golds != r.get("gold") or abs(new_score - r.get("score", 0)) > 1e-9:
+                changed += 1
+            r["gold"], r["score"] = golds, new_score
+        with open(f, "w", encoding="utf-8") as fp:
+            for r in rows:
+                fp.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"重算 {total} 条，变化 {changed} 条")
+    return 0
+
+
 def summarize(cfg, models=None, n=None) -> int:
     api_dir = cfg.out_dir / "api"
     rows = []

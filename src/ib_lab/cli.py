@@ -24,6 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--model", action="append", default=None, help="仅 api：模型 id，可重复")
     b.add_argument("--n", type=int, default=None, help="仅 api：每任务抽样条数")
     b.add_argument("--tasks", nargs="*", default=None, help="只跑指定任务")
+    b.add_argument("--rescore", action="store_true", help="只重算已落盘预测的 gold/score，不调 API")
     b.set_defaults(func=_baseline)
 
     t = sub.add_parser("table", help="汇总成实验表")
@@ -58,6 +59,8 @@ def _baseline(args, cfg):
         from .baselines import offline
         return offline.run(cfg, tasks=args.tasks)
     from .baselines import api
+    if args.rescore:
+        return api.rescore(cfg)
     return api.run(cfg, models=args.model, n=args.n, tasks=args.tasks)
 
 
